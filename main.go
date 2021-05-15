@@ -1,41 +1,29 @@
 package main
 
 import (
-	"log"
-	"net/http"
+	"os"
+	"strings"
 
-	"github.com/PuerkitoBio/goquery"
+	"github.com/hyeseong-dev/jobscrapper/scrapper"
+	"github.com/labstack/echo"
 )
 
-var baseURL string = "https://kr.indeed.com/jobs?q=python&limit=50"
+func handleHome(c echo.Context) error {
+	return c.File("home.html")
+}
+
+func handleIndeedScrape(c echo.Context) error {
+	fileName := "indeed_jobs.csv"
+	defer os.Remove(fileName)
+	term := strings.ToLower(scrapper.CleanString(c.FormValue("term")))
+	scrapper.IndeedScrape(term)
+	return c.Attachment(fileName, fileName)
+	return nil
+}
 
 func main() {
-	getPage()
-}
-
-// Get how many pages from the indeed website
-func getPage() int {
-	res, err := http.Get(baseURL)
-	checkErr(err)
-	checkCode(res)
-
-	defer res.Body.Close()
-
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	checkErr(err)
-	doc.Find(".pagination").Each()
-
-	return 0
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func checkCode(res *http.Response) {
-	if res.StatusCode != 200 {
-		log.Fatalln("request failed with Status: ", res.StatusCode)
-	}
+	e := echo.New()
+	e.GET("/", handleHome)
+	e.POST("/scrape", handleIndeedScrape)
+	e.Logger.Fatal(e.Start(":4000"))
 }
